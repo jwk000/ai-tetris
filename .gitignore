@@ -9,4 +9,4 @@ out/
 .env.local
 .vscode/
 .idea/
-public/audio/
+
