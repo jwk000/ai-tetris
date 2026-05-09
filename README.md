@@ -2,6 +2,8 @@
 
 AI 无限落子的俄罗斯方块小游戏（Node.js + TypeScript + Canvas）。
 
+🎮 **在线试玩**：https://jwk000.github.io/ai-tetris/
+
 ## 特性
 
 - **AI 自动落子**：内置启发式 AI，可关闭后改为手动键盘控制
