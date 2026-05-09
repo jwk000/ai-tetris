@@ -63,7 +63,7 @@ export class Background {
   boardCanvas: HTMLCanvasElement | null = null;
   getBoardRect: (() => DOMRect) | null = null;
 
-  onRipple: (() => void) | null = null;
+  onRipple: ((x: number, y: number) => void) | null = null;
   onThunder: (() => void) | null = null;
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -168,7 +168,7 @@ export class Background {
       });
     }
     if (this.splashes.length > 240) this.splashes.splice(0, this.splashes.length - 240);
-    this.onRipple?.();
+    this.onRipple?.(x, y);
   }
 
   start(): void {

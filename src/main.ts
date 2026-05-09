@@ -76,8 +76,20 @@ game.onLineClear = (count) => {
   const duration = 0.35 + count * 0.08;
   renderer.shake(magnitude, duration);
   audio.playSfx('lineClear', { volume: 0.75 });
+  if (water) {
+    const rect = boardRect();
+    const surfaceY = background.waterLineY();
+    const burstCount = 2 + count;
+    for (let i = 0; i < burstCount; i++) {
+      const x = rect.left + Math.random() * rect.width;
+      water.addRipple(x, surfaceY, 1.1 + Math.random() * 0.4);
+    }
+  }
 };
-background.onRipple = () => audio.playSfx('waterDrop', { volume: 0.18, detuneCents: randomDetune(), throttleMs: 180 });
+background.onRipple = (x, y) => {
+  audio.playSfx('waterDrop', { volume: 0.18, detuneCents: randomDetune(), throttleMs: 180 });
+  water?.addRipple(x, y, 0.7 + Math.random() * 0.5);
+};
 background.onThunder = () => audio.playSfx('thunder', { volume: 0.85, detuneCents: randomDetune() });
 
 function syncUI(): void {
