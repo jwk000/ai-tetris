@@ -934,6 +934,8 @@
       return this.currentFlash();
     }
     flashLightning(linesCleared) {
+      const THUNDER_CHANCE = 0.3;
+      if (Math.random() >= THUNDER_CHANCE) return;
       const intensity = Math.min(1, 0.55 + linesCleared * 0.18);
       this.flashes.push({ life: 0.55, maxLife: 0.55, intensity });
       const boltCount = 1 + Math.min(2, Math.floor(linesCleared / 2));
