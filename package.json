@@ -1,0 +1,18 @@
+{
+  "name": "ai-tetris",
+  "version": "1.0.0",
+  "description": "AI auto-play Tetris with manual keyboard control, zoomable canvas, and break particle effects.",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outfile=public/bundle.js --target=es2020 --sourcemap",
+    "watch": "esbuild src/main.ts --bundle --outfile=public/bundle.js --target=es2020 --sourcemap --watch",
+    "typecheck": "tsc --noEmit",
+    "audio": "bash scripts/download-audio.sh",
+    "start": "node server.js",
+    "dev": "npm run build && npm start"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5",
+    "typescript": "^5.4.5"
+  }
+}

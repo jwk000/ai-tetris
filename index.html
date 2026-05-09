@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AI Tetris</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #0c0e16; color: #e7e9ee; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; }
+  #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  #water-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+  #app { position: relative; z-index: 2; display: flex; height: 100vh; }
+  #side { background: rgba(20, 24, 35, 0.78); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  #stage { flex: 1; min-width: 0; display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px 0; overflow: hidden; }
+  #canvas { background: #11141d; border-radius: 8px; box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 4px 14px rgba(80, 120, 200, 0.15), 0 0 0 1px #1f2433 inset; display: block; }
+  #side { width: 280px; flex-shrink: 0; padding: 20px 18px; background: #141823; border-left: 1px solid #1f2433; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+  h1 { font-size: 18px; margin: 0 0 8px; letter-spacing: 1px; color: #8ad7ff; }
+  .stat { display: flex; justify-content: space-between; padding: 6px 10px; background: #11141d; border-radius: 6px; font-size: 14px; }
+  .stat b { color: #ffd66e; font-weight: 600; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { flex: 1 1 0; min-width: 64px; cursor: pointer; padding: 8px 10px; font-size: 13px; color: #e7e9ee; background: #1d2334; border: 1px solid #2c344a; border-radius: 6px; transition: 0.12s; }
+  button:hover { background: #283150; border-color: #3a4870; }
+  button.primary { background: #245a99; border-color: #2e74c0; }
+  button.primary:hover { background: #2c6cb6; }
+  button.danger { background: #7a2d2d; border-color: #a73838; }
+  button.active { background: #2e7d4f; border-color: #3aa066; }
+  #next-canvas { display: block; margin: 0 auto; background: #11141d; border-radius: 6px; }
+  .hint { font-size: 12px; color: #8a93a8; line-height: 1.6; }
+  .hint kbd { background: #1f2433; padding: 1px 6px; border-radius: 3px; border: 1px solid #2c344a; color: #cfd5e3; font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+  #overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; background: rgba(8,10,16,0.78); border-radius: 8px; }
+  #overlay.show { display: flex; }
+  #overlay h2 { color: #ff7676; margin: 0; font-size: 32px; }
+  #overlay button { flex: 0 0 auto; padding: 10px 24px; font-size: 14px; }
+  .stage-wrap { position: relative; }
+  #file-protocol-banner { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 9999; padding: 14px 20px; background: #7a2d2d; color: #ffe6e6; font-size: 14px; line-height: 1.6; box-shadow: 0 4px 18px rgba(0,0,0,0.45); border-bottom: 1px solid #a73838; text-align: center; }
+  #file-protocol-banner.show { display: block; }
+  #file-protocol-banner code { background: rgba(0,0,0,0.35); padding: 2px 8px; border-radius: 4px; font-family: ui-monospace, Menlo, monospace; }
+</style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <canvas id="water-canvas"></canvas>
+  <div id="file-protocol-banner">
+    ⚠️ 检测到使用 <code>file://</code> 直接打开页面，浏览器会阻止加载音频资源（音效将无法播放）。
+    请改为运行 <code>npm run dev</code>，然后访问 <code>http://localhost:8080</code>。
+  </div>
+  <div id="app">
+    <div id="stage">
+      <div class="stage-wrap">
+        <canvas id="canvas" width="280" height="560"></canvas>
+        <div id="overlay">
+          <h2>Game Over</h2>
+          <button id="btn-restart" class="primary">重新开始</button>
+        </div>
+      </div>
+    </div>
+    <aside id="side">
+      <h1>🎮 AI Tetris</h1>
+
+      <div class="stat"><span>分数</span><b id="score">0</b></div>
+      <div class="stat"><span>消除行数</span><b id="lines">0</b></div>
+      <div class="stat"><span>等级</span><b id="level">1</b></div>
+      <div class="stat"><span>速度</span><b id="speed">1.0x</b></div>
+      <div class="stat"><span>状态</span><b id="status">AI 自动</b></div>
+
+      <div>
+        <div style="font-size:12px;color:#8a93a8;margin-bottom:6px;">下一个</div>
+        <canvas id="next-canvas" width="120" height="120"></canvas>
+      </div>
+
+      <div class="row">
+        <button id="btn-pause" class="primary">暂停</button>
+        <button id="btn-ai" class="active">AI: 开</button>
+        <button id="btn-sound" class="active">🔊 声音</button>
+      </div>
+      <div class="row">
+        <button id="btn-slower">减速 -</button>
+        <button id="btn-faster">加速 +</button>
+      </div>
+      <div class="row">
+        <button id="btn-restart-2" class="danger">重新开始</button>
+      </div>
+
+      <div class="hint">
+        <div><b style="color:#cfd5e3">手动键位</b>（关闭 AI 后生效）</div>
+        <div><kbd>←</kbd> <kbd>→</kbd> 移动 &nbsp; <kbd>↑</kbd> 旋转</div>
+        <div><kbd>↓</kbd> 加速下落 &nbsp; <kbd>Space</kbd> 硬降</div>
+        <div><kbd>P</kbd> 暂停 &nbsp; <kbd>A</kbd> 切换 AI</div>
+        <div><kbd>[</kbd> 减速 &nbsp; <kbd>]</kbd> 加速 &nbsp; <kbd>M</kbd> 静音</div>
+      </div>
+    </aside>
+  </div>
+  <script src="public/bundle.js"></script>
+</body>
+</html>

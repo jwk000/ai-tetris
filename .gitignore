@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+.tmp/
+*.log
+dist/
+build/
+out/
+.env
+.env.local
+.vscode/
+.idea/
+public/audio/
