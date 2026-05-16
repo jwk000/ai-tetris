@@ -864,6 +864,13 @@
   var CLOUD_HEIGHT = 200;
   var SPLASH_RAIN_PROB = 0.45;
   var SPLASH_GRAVITY = 1400;
+  var CLOUD_FLASH_CHANCE_PER_SEC = 0.45;
+  var CLOUD_FLASH_MIN_LIFE = 0.2;
+  var CLOUD_FLASH_MAX_LIFE = 0.4;
+  var CLOUD_FLASH_MIN_INTENSITY = 0.35;
+  var CLOUD_FLASH_MAX_INTENSITY = 0.7;
+  var CLOUD_FLASH_MIN_RADIUS = 70;
+  var CLOUD_FLASH_MAX_RADIUS = 200;
   var NOISE_TILE_W = 512;
   var NOISE_TILE_H = 256;
   var Background = class {
@@ -876,6 +883,7 @@
       this.splashes = [];
       this.bolts = [];
       this.flashes = [];
+      this.cloudFlashes = [];
       this.cloudTile = null;
       this.rafId = null;
       this.elapsed = 0;
@@ -960,6 +968,14 @@
       }
       return { segments, life: 0.22, maxLife: 0.22, startX, startY };
     }
+    makeCloudFlash() {
+      const x = this.widthCss * (0.1 + Math.random() * 0.8);
+      const y = 40 + Math.random() * (CLOUD_HEIGHT - 60);
+      const life = CLOUD_FLASH_MIN_LIFE + Math.random() * (CLOUD_FLASH_MAX_LIFE - CLOUD_FLASH_MIN_LIFE);
+      const intensity = CLOUD_FLASH_MIN_INTENSITY + Math.random() * (CLOUD_FLASH_MAX_INTENSITY - CLOUD_FLASH_MIN_INTENSITY);
+      const radius = CLOUD_FLASH_MIN_RADIUS + Math.random() * (CLOUD_FLASH_MAX_RADIUS - CLOUD_FLASH_MIN_RADIUS);
+      return { x, y, life, maxLife: life, intensity, radius };
+    }
     spawnSplash(x, y) {
       const count = 3 + Math.floor(Math.random() * 3);
       for (let i = 0; i < count; i++) {
@@ -1026,6 +1042,14 @@
         this.flashes[i].life -= dt;
         if (this.flashes[i].life <= 0) this.flashes.splice(i, 1);
       }
+      for (let i = this.cloudFlashes.length - 1; i >= 0; i--) {
+        this.cloudFlashes[i].life -= dt;
+        if (this.cloudFlashes[i].life <= 0) this.cloudFlashes.splice(i, 1);
+      }
+      if (Math.random() < CLOUD_FLASH_CHANCE_PER_SEC * dt) {
+        this.cloudFlashes.push(this.makeCloudFlash());
+        if (this.cloudFlashes.length > 12) this.cloudFlashes.shift();
+      }
     }
     currentFlash() {
       let a = 0;
@@ -1082,6 +1106,24 @@
         while (x < w + drawW) {
           ctx.drawImage(tile, x, baseY, drawW, drawH);
           x += drawW;
+        }
+      }
+      if (this.cloudFlashes.length > 0) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.filter = "none";
+        for (const f of this.cloudFlashes) {
+          const t = f.life / f.maxLife;
+          const alpha = t < 0.2 ? t / 0.2 : (1 - t) / 0.8;
+          const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius);
+          grad.addColorStop(0, `rgba(200, 220, 255, ${alpha * f.intensity * 0.9})`);
+          grad.addColorStop(0.35, `rgba(180, 200, 240, ${alpha * f.intensity * 0.5})`);
+          grad.addColorStop(0.7, `rgba(140, 170, 220, ${alpha * f.intensity * 0.15})`);
+          grad.addColorStop(1, "rgba(100, 130, 180, 0)");
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
       ctx.restore();
@@ -1523,9 +1565,8 @@ void main() {
   var SFX_FILES = {
     move: "public/audio/move.mp3",
     rotate: "public/audio/rotate.mp3",
-    drop: "public/audio/drop.wav",
+    drop: "public/audio/drop.mp3",
     lineClear: "public/audio/line-clear.mp3",
-    waterDrop: "public/audio/water-drop.mp3",
     thunder: "public/audio/thunder.mp3"
   };
   var LOOP_FILES = {
@@ -1535,7 +1576,7 @@ void main() {
   var DEFAULT_STATE = {
     muted: false,
     master: 0.85,
-    music: 0.55,
+    music: 0.35,
     ambient: 0.45,
     sfx: 0.7
   };
@@ -1767,7 +1808,7 @@ void main() {
     const magnitude = 4 + count * 3;
     const duration = 0.35 + count * 0.08;
     renderer.shake(magnitude, duration);
-    audio.playSfx("lineClear", { volume: 0.75 });
+    audio.playSfx("lineClear", { volume: 0.5 });
     if (water) {
       const rect = boardRect();
       const surfaceY = background.waterLineY();
@@ -1779,10 +1820,9 @@ void main() {
     }
   };
   background.onRipple = (x, y) => {
-    audio.playSfx("waterDrop", { volume: 0.18, detuneCents: randomDetune(), throttleMs: 180 });
     water?.addRipple(x, y, 0.7 + Math.random() * 0.5);
   };
-  background.onThunder = () => audio.playSfx("thunder", { volume: 0.85, detuneCents: randomDetune() });
+  background.onThunder = () => audio.playSfx("thunder", { volume: 0.9, detuneCents: randomDetune() });
   function syncUI() {
     const s = game.snapshot();
     elScore.textContent = String(s.score);

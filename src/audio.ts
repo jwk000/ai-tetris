@@ -1,4 +1,4 @@
-export type SfxName = 'move' | 'rotate' | 'drop' | 'lineClear' | 'waterDrop' | 'thunder';
+export type SfxName = 'move' | 'rotate' | 'drop' | 'lineClear' | 'thunder';
 export type LoopName = 'bgm' | 'rain';
 
 interface SfxOptions {
@@ -25,9 +25,8 @@ interface PersistState {
 const SFX_FILES: Record<SfxName, string> = {
   move: 'public/audio/move.mp3',
   rotate: 'public/audio/rotate.mp3',
-  drop: 'public/audio/drop.wav',
+  drop: 'public/audio/drop.mp3',
   lineClear: 'public/audio/line-clear.mp3',
-  waterDrop: 'public/audio/water-drop.mp3',
   thunder: 'public/audio/thunder.mp3',
 };
 
@@ -39,7 +38,7 @@ const LOOP_FILES: Record<LoopName, string> = {
 const DEFAULT_STATE: PersistState = {
   muted: false,
   master: 0.85,
-  music: 0.55,
+  music: 0.35,
   ambient: 0.45,
   sfx: 0.7,
 };

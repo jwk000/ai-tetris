@@ -31,6 +31,17 @@ interface FlashEvent {
   intensity: number;
 }
 
+interface CloudFlash {
+  x: number;
+  y: number;
+  life: number;
+  maxLife: number;
+  intensity: number;
+  radius: number;
+  branches: Array<Array<{ x: number; y: number }>>;
+  flickerPhase: number;
+}
+
 const RAIN_COUNT = 240;
 const WIND_X = -120;
 const RAIN_SPEED_MIN = 800;
@@ -39,6 +50,18 @@ const RAIN_SPEED_MAX = 1300;
 const CLOUD_HEIGHT = 200;
 const SPLASH_RAIN_PROB = 0.45;
 const SPLASH_GRAVITY = 1400;
+
+// Cloud-internal lightning flash
+const CLOUD_FLASH_CHANCE_PER_SEC = 0.45;
+const CLOUD_FLASH_MIN_LIFE = 0.2;
+const CLOUD_FLASH_MAX_LIFE = 0.4;
+const CLOUD_FLASH_MIN_INTENSITY = 0.35;
+const CLOUD_FLASH_MAX_INTENSITY = 0.7;
+const CLOUD_FLASH_MIN_RADIUS = 70;
+const CLOUD_FLASH_MAX_RADIUS = 200;
+const CLOUD_FLASH_MAX_COUNT = 8;
+const CLOUD_FLASH_MIN_BRANCHES = 2;
+const CLOUD_FLASH_MAX_BRANCHES = 5;
 
 // Cloud noise tile: tileable in X for seamless horizontal scrolling
 const NOISE_TILE_W = 512;
@@ -54,6 +77,7 @@ export class Background {
   private splashes: Splash[] = [];
   private bolts: LightningBolt[] = [];
   private flashes: FlashEvent[] = [];
+  private cloudFlashes: CloudFlash[] = [];
 
   private cloudTile: HTMLCanvasElement | null = null;
 
@@ -153,6 +177,33 @@ export class Background {
     return { segments, life: 0.22, maxLife: 0.22, startX, startY };
   }
 
+  private makeCloudFlash(): CloudFlash {
+    const x = this.widthCss * (0.1 + Math.random() * 0.8);
+    const y = 40 + Math.random() * (CLOUD_HEIGHT - 60);
+    const life = CLOUD_FLASH_MIN_LIFE + Math.random() * (CLOUD_FLASH_MAX_LIFE - CLOUD_FLASH_MIN_LIFE);
+    const intensity = CLOUD_FLASH_MIN_INTENSITY + Math.random() * (CLOUD_FLASH_MAX_INTENSITY - CLOUD_FLASH_MIN_INTENSITY);
+    const radius = CLOUD_FLASH_MIN_RADIUS + Math.random() * (CLOUD_FLASH_MAX_RADIUS - CLOUD_FLASH_MIN_RADIUS);
+    const branchCount = CLOUD_FLASH_MIN_BRANCHES + Math.floor(Math.random() * (CLOUD_FLASH_MAX_BRANCHES - CLOUD_FLASH_MIN_BRANCHES + 1));
+    const branches: Array<Array<{ x: number; y: number }>> = [];
+    for (let b = 0; b < branchCount; b++) {
+      const angle = (Math.PI * 2 * b) / branchCount + (Math.random() - 0.5) * 0.8;
+      const maxDist = radius * (0.5 + Math.random() * 0.5);
+      const segCount = 3 + Math.floor(Math.random() * 4);
+      const path: Array<{ x: number; y: number }> = [{ x, y }];
+      let cx = x;
+      let cy = y;
+      for (let s = 0; s < segCount; s++) {
+        const dist = (maxDist / segCount) * (1 + s);
+        const wanderAngle = angle + (Math.random() - 0.5) * 0.7;
+        cx = x + Math.cos(wanderAngle) * dist;
+        cy = y + Math.sin(wanderAngle) * dist * 0.6;
+        path.push({ x: cx, y: cy });
+      }
+      branches.push(path);
+    }
+    return { x, y, life, maxLife: life, intensity, radius, branches, flickerPhase: Math.random() * Math.PI * 2 };
+  }
+
   private spawnSplash(x: number, y: number): void {
     const count = 3 + Math.floor(Math.random() * 3);
     for (let i = 0; i < count; i++) {
@@ -222,6 +273,15 @@ export class Background {
     for (let i = this.flashes.length - 1; i >= 0; i--) {
       this.flashes[i]!.life -= dt;
       if (this.flashes[i]!.life <= 0) this.flashes.splice(i, 1);
+    }
+    for (let i = this.cloudFlashes.length - 1; i >= 0; i--) {
+      this.cloudFlashes[i]!.life -= dt;
+      if (this.cloudFlashes[i]!.life <= 0) this.cloudFlashes.splice(i, 1);
+    }
+
+    if (Math.random() < CLOUD_FLASH_CHANCE_PER_SEC * dt) {
+      this.cloudFlashes.push(this.makeCloudFlash());
+      if (this.cloudFlashes.length > CLOUD_FLASH_MAX_COUNT) this.cloudFlashes.shift();
     }
 
   }
@@ -294,6 +354,26 @@ export class Background {
       while (x < w + drawW) {
         ctx.drawImage(tile, x, baseY, drawW, drawH);
         x += drawW;
+      }
+    }
+
+    // Cloud-internal lightning flashes: brighten cloud pixels locally
+    if (this.cloudFlashes.length > 0) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.filter = 'none';
+      for (const f of this.cloudFlashes) {
+        const t = f.life / f.maxLife;
+        const alpha = t < 0.2 ? t / 0.2 : (1 - t) / 0.8;
+        const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius);
+        grad.addColorStop(0, `rgba(200, 220, 255, ${alpha * f.intensity * 0.9})`);
+        grad.addColorStop(0.35, `rgba(180, 200, 240, ${alpha * f.intensity * 0.5})`);
+        grad.addColorStop(0.7, `rgba(140, 170, 220, ${alpha * f.intensity * 0.15})`);
+        grad.addColorStop(1, 'rgba(100, 130, 180, 0)');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
     ctx.restore();

@@ -14,14 +14,13 @@ dl() {
   echo "got  $out ($(wc -c < "$out") bytes)"
 }
 
-dl "https://assets.mixkit.co/active_storage/sfx/1133/1133-preview.mp3" "move.mp3"
-dl "https://assets.mixkit.co/active_storage/sfx/1489/1489-preview.mp3" "rotate.mp3"
-# drop.wav 由用户手动提供，不在自动下载范围内
-dl "https://assets.mixkit.co/active_storage/sfx/2782/2782-preview.mp3" "line-clear.mp3"
-dl "https://assets.mixkit.co/active_storage/sfx/2997/2997-preview.mp3" "water-drop.mp3"
-dl "https://assets.mixkit.co/active_storage/sfx/210/210-preview.mp3"   "thunder.mp3"
+dl "https://assets.mixkit.co/active_storage/sfx/2627/2627-preview.mp3" "move.mp3"
+dl "https://assets.mixkit.co/active_storage/sfx/2626/2626-preview.mp3" "rotate.mp3"
+dl "https://assets.mixkit.co/active_storage/sfx/2628/2628-preview.mp3" "drop.mp3"
+dl "https://assets.mixkit.co/active_storage/sfx/2633/2633-preview.mp3" "line-clear.mp3"
+dl "https://assets.mixkit.co/active_storage/sfx/1300/1300-preview.mp3"   "thunder.mp3"
 dl "https://assets.mixkit.co/active_storage/sfx/2393/2393-preview.mp3" "rain-loop.mp3"
-dl "https://opengameart.org/sites/default/files/benkyou-loop_0.mp3"    "bgm.mp3"
+dl "https://opengameart.org/sites/default/files/013_Another_August.mp3"    "bgm.mp3"
 
 echo ""
 echo "audio assets ready in public/audio/"
