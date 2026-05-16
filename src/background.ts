@@ -357,19 +357,53 @@ export class Background {
       }
     }
 
-    // Cloud-internal lightning flashes: brighten cloud pixels locally
+    // Cloud-internal lightning: tendril branches + ambient glow + flicker
     if (this.cloudFlashes.length > 0) {
-      ctx.globalCompositeOperation = 'lighter';
       ctx.filter = 'none';
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'lighter';
+
       for (const f of this.cloudFlashes) {
         const t = f.life / f.maxLife;
-        const alpha = t < 0.2 ? t / 0.2 : (1 - t) / 0.8;
+        // Life envelope: quick rise, slow decay
+        const envelope = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
+        // Flicker: rapid on/off pulses simulating electrical discharge
+        const flicker = 0.35 +
+          0.45 * Math.abs(Math.sin(f.flickerPhase + f.life * 65)) +
+          0.2 * Math.abs(Math.sin(f.flickerPhase * 1.7 + f.life * 38));
+        const flickerAlpha = Math.min(1, envelope * flicker * 0.9);
+
+        // Draw branching tendrils (lightning conduction paths)
+        for (const branch of f.branches) {
+          if (branch.length < 2) continue;
+          // Outer glow pass
+          ctx.shadowColor = `rgba(200, 225, 255, ${flickerAlpha * f.intensity * 0.6})`;
+          ctx.shadowBlur = 12;
+          ctx.strokeStyle = `rgba(220, 235, 255, ${flickerAlpha * f.intensity * 0.7})`;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(branch[0]!.x, branch[0]!.y);
+          for (let i = 1; i < branch.length; i++) {
+            ctx.lineTo(branch[i]!.x, branch[i]!.y);
+          }
+          ctx.stroke();
+
+          // Core bright line
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = `rgba(240, 250, 255, ${flickerAlpha * f.intensity * 0.5})`;
+          ctx.strokeStyle = `rgba(255, 255, 255, ${flickerAlpha * f.intensity * 0.85})`;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+
+        // Ambient radial glow illuminating cloud texture
+        const glowAlpha = flickerAlpha * f.intensity * 0.55;
         const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius);
-        grad.addColorStop(0, `rgba(200, 220, 255, ${alpha * f.intensity * 0.9})`);
-        grad.addColorStop(0.35, `rgba(180, 200, 240, ${alpha * f.intensity * 0.5})`);
-        grad.addColorStop(0.7, `rgba(140, 170, 220, ${alpha * f.intensity * 0.15})`);
-        grad.addColorStop(1, 'rgba(100, 130, 180, 0)');
-        ctx.globalAlpha = 1;
+        grad.addColorStop(0, `rgba(200, 220, 255, ${glowAlpha * 0.7})`);
+        grad.addColorStop(0.3, `rgba(170, 195, 235, ${glowAlpha * 0.4})`);
+        grad.addColorStop(0.6, `rgba(130, 160, 210, ${glowAlpha * 0.12})`);
+        grad.addColorStop(1, 'rgba(80, 110, 160, 0)');
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
